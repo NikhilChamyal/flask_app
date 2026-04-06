@@ -1,0 +1,34 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Build Image
+      run: docker build -t yourusername/flask-app:${{ github.sha }} .
+
+    - name: Login Docker Hub
+      run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+    - name: Push Image
+      run: docker push yourusername/flask-app:${{ github.sha }}
+
+    - name: Update Manifest Repo
+      run: |
+        git clone https://github.com/yourusername/flask-manifest.git
+        cd flask-manifest
+        sed -i "s|image:.*|image: yourusername/flask-app:${{ github.sha }}|g" deployment.yaml
+        git config user.name "github-actions"
+        git config user.email "actions@github.com"
+        git add .
+        git commit -m "update image"
+        git push
